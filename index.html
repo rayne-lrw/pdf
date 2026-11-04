@@ -86,9 +86,12 @@ progress { flex: 1; min-width: 120px; height: 10px; accent-color: var(--accent);
 .modal td input:focus { border-color: var(--accent); outline: none; }
 .modal td input[type="checkbox"] { width: auto; }
 .modal td input.num { width: 64px; }
-.modal td.st { white-space: normal; font-size: 12.5px; }
-.modal td.st.warn { color: #bf8700; }
-.modal tr.bad td.st { color: var(--danger); }
+.modal td select { font: inherit; max-width: 170px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 3px; background: var(--panel); color: var(--text); }
+.modal td .where { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.modal td .where input.num { width: 60px; }
+.modal div.st { white-space: normal; font-size: 12.5px; margin-top: 2px; color: var(--muted); }
+.modal div.st.warn { color: #bf8700; }
+.modal tr.bad div.st { color: var(--danger); }
 .modal tr.off td { color: var(--muted); }
 .modal .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
 .modal .summary { color: var(--muted); font-size: 12.5px; margin-right: auto; }
@@ -886,9 +889,11 @@ function hideThumb() {
   thumbEl = null;
 }
 
-// target() 在滑鼠移進來時才算，回傳 { it, page } 或 null（例如頁碼超出範圍）
+// target() 在要顯示時才算，回傳 { it, page } 或 null（例如頁碼超出範圍）
+// 回傳 refresh()：滑鼠還在格子上而內容改了時，重新顯示
 function hoverThumb(cell, target) {
-  cell.addEventListener("mouseenter", () => {
+  let inside = false;
+  const show = () => {
     hideThumb();
     const t = target();
     if (!t) return;
@@ -909,8 +914,10 @@ function hoverThumb(cell, target) {
         if (thumbToken === token) el.textContent = "無法顯示縮圖";
       }
     }, THUMB_DELAY);
-  });
-  cell.addEventListener("mouseleave", hideThumb);
+  };
+  cell.addEventListener("mouseenter", () => { inside = true; show(); });
+  cell.addEventListener("mouseleave", () => { inside = false; hideThumb(); });
+  return () => { if (inside) show(); };
 }
 
 // ---------- 合併前確認書籤 ----------
@@ -1149,7 +1156,15 @@ async function importBookmarks(f) {
 function importDialog(fileName, list) {
   return new Promise((resolve) => {
     const pages = mergedPages();
-    const rows = list.map((e) => ({ ...e, on: true }));
+    // 同一個檔案在清單裡出現不只一次時，用「第幾項」區分
+    const nameCount = new Map();
+    items.forEach((it) => nameCount.set(it.name, (nameCount.get(it.name) || 0) + 1));
+    const label = (it, i) => (nameCount.get(it.name) > 1 ? `${it.name}（第 ${i + 1} 項）` : it.name);
+    // 匯入檔的頁碼是合併後頁碼，先換算成「哪一項的原檔第幾頁」
+    const rows = list.map((e) => {
+      const pg = pages[e.n - 1];
+      return { title: e.title, on: true, it: pg ? pg.it : null, sp: pg ? pg.page + 1 : e.n, n: e.n };
+    });
     const bg = document.createElement("div");
     bg.className = "modal-bg";
     const m = document.createElement("div");
@@ -1157,44 +1172,60 @@ function importDialog(fileName, list) {
     m.innerHTML = `<h2>匯入書籤</h2><div class="hint"></div>
       <div class="tools"><span class="label">全部頁碼：</span><button data-act="minus">−1</button><button data-act="plus">+1</button>
       <span class="label">勾選：</span><button data-act="all">全選</button><button data-act="none">全不選</button></div>
-      <div class="body"><table><thead><tr><th style="width:44px">套用</th><th style="width:84px">頁碼</th><th>這頁目前是</th><th style="width:38%">書籤名稱</th></tr></thead><tbody></tbody></table></div>
+      <div class="body"><table><thead><tr><th style="width:44px">套用</th><th>放到哪一頁</th><th style="width:38%">書籤名稱</th></tr></thead><tbody></tbody></table></div>
       <div class="btns"><span class="summary"></span><button class="primary" data-act="ok">套用</button><button data-act="cancel">取消</button></div>`;
-    m.querySelector(".hint").textContent = `從「${fileName}」讀到 ${rows.length} 個書籤，頁碼是合併後的頁碼（目前共 ${pages.length} 頁）。可以修改頁碼和名稱，或取消勾選不要的書籤。`;
+    m.querySelector(".hint").textContent = `從「${fileName}」讀到 ${rows.length} 個書籤，已依合併後的頁碼對應到各檔案的頁面。`
+      + "可以改放到哪個檔案的第幾頁、修改名稱，或取消勾選不要的書籤。";
     const tb = m.querySelector("tbody");
     for (const r of rows) {
       r.tr = document.createElement("tr");
       const td = () => document.createElement("td");
-      const c1 = td(), c2 = td(), c4 = td();
+      const c1 = td(), c2 = td(), c3 = td();
       r.chk = Object.assign(document.createElement("input"), { type: "checkbox", checked: true });
-      r.num = Object.assign(document.createElement("input"), { type: "number", min: 1, className: "num", value: r.n });
+      r.sel = document.createElement("select");
+      if (!r.it) r.sel.append(new Option("（請選擇檔案）", ""));
+      items.forEach((it, i) => r.sel.append(new Option(label(it, i), it.uid)));
+      r.sel.value = r.it ? r.it.uid : "";
+      r.num = Object.assign(document.createElement("input"), { type: "number", min: 1, className: "num", value: r.sp });
       r.name = Object.assign(document.createElement("input"), { value: r.title });
-      r.st = td();
-      r.st.className = "st";
-      hoverThumb(r.st, () => {
-        const pg = Number.isInteger(r.n) ? pages[r.n - 1] : null;
-        return pg && { it: pg.it, page: pg.page };
-      });
-      c1.appendChild(r.chk); c2.appendChild(r.num); c4.appendChild(r.name);
-      r.tr.append(c1, c2, r.st, c4);
+      r.st = Object.assign(document.createElement("div"), { className: "st" });
+      const where = Object.assign(document.createElement("div"), { className: "where" });
+      where.append(r.sel, "（第", r.num, "頁）");
+      c1.appendChild(r.chk);
+      c2.append(where, r.st);
+      c3.appendChild(r.name);
+      r.tr.append(c1, c2, c3);
       tb.appendChild(r.tr);
+      const refresh = hoverThumb(c2, () => (r.k >= 0 ? { it: r.it, page: r.sp - 1 } : null));
       r.chk.onchange = () => { r.on = r.chk.checked; validate(); };
-      r.num.oninput = () => { r.n = r.num.value === "" ? NaN : +r.num.value; validate(); };
+      r.sel.onchange = () => {
+        r.it = items.find((it) => String(it.uid) === r.sel.value) || null;
+        r.sel.querySelector('option[value=""]')?.remove();
+        validate(); refresh();
+      };
+      r.num.oninput = () => { r.sp = r.num.value === "" ? NaN : +r.num.value; validate(); refresh(); };
       r.name.oninput = () => { r.title = r.name.value; validate(); };
     }
     const okBtn = m.querySelector('[data-act="ok"]'), summary = m.querySelector(".summary");
+    // 合併後頁碼的起點
+    const startOf = new Map();
+    let acc = 0;
+    for (const it of items) { startOf.set(it, acc); acc += it.sel.length; }
     function validate() {
+      for (const r of rows) r.k = r.it && Number.isInteger(r.sp) ? r.it.sel.indexOf(r.sp - 1) : -1;
       const count = new Map();
-      for (const r of rows) if (r.on && Number.isInteger(r.n)) count.set(r.n, (count.get(r.n) || 0) + 1);
+      const key = (r) => `${r.it.uid}:${r.sp}`;
+      for (const r of rows) if (r.on && r.k >= 0) count.set(key(r), (count.get(key(r)) || 0) + 1);
       let good = 0, bad = 0;
       for (const r of rows) {
-        const pg = Number.isInteger(r.n) ? pages[r.n - 1] : null;
-        let text, err = false, warn = false;
-        if (!pg) { text = `超出範圍（合併後共 ${pages.length} 頁）`; err = true; }
+        let text = "", err = false, warn = false;
+        if (!r.it) { text = `合併後第 ${r.n} 頁超出範圍（目前共 ${pages.length} 頁），請選擇檔案`; err = true; }
+        else if (!Number.isInteger(r.sp) || r.sp < 1 || r.sp > r.it.total) { text = `超出範圍（這個檔案共 ${r.it.total} 頁）`; err = true; }
+        else if (r.k < 0) { text = "這頁沒有被選進合併（不在頁碼範圍內）"; err = true; }
         else {
-          text = `${pg.it.name}（第 ${pg.page + 1} 頁）`;
-          const cur = pg.it.marks[pg.page];
-          if (!isFirstOccurrence(pg.it, pg.k)) { text += "：這頁在這一項裡重複出現，不能設書籤"; err = true; }
-          else if (count.get(r.n) > 1) { text += "：和其他行指到同一頁"; err = true; }
+          text = `合併後第 ${startOf.get(r.it) + r.k + 1} 頁`;
+          const cur = r.it.marks[r.sp - 1];
+          if (count.get(key(r)) > 1) { text += "：和其他行指到同一頁"; err = true; }
           else if (!r.title.trim()) { text += "：書籤名稱是空的"; err = true; }
           else if (cur && cur !== r.title.trim()) { text += `　⚠ 已有書籤「${cur}」，會被取代`; warn = true; }
         }
@@ -1208,10 +1239,11 @@ function importDialog(fileName, list) {
       summary.classList.toggle("error", !!bad);
       okBtn.disabled = !!bad || !good;
     }
-    const shift = (d) => { for (const r of rows) if (Number.isInteger(r.n)) { r.n += d; r.num.value = r.n; } validate(); };
+    // 每一行在自己的檔案裡加減
+    const shift = (d) => { for (const r of rows) if (Number.isInteger(r.sp)) { r.sp += d; r.num.value = r.sp; } validate(); };
     const close = (ok) => {
       let n = 0;
-      if (ok) for (const r of rows) if (r.on) { const pg = pages[r.n - 1]; setMark(pg.it, pg.page, r.title); n++; }
+      if (ok) for (const r of rows) if (r.on) { setMark(r.it, r.sp - 1, r.title); n++; }
       hideThumb();
       bg.remove();
       render();
