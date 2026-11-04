@@ -85,6 +85,15 @@ progress { flex: 1; min-width: 120px; height: 10px; accent-color: var(--accent);
 .modal td { max-width: none; white-space: normal; }
 .modal td input { border-color: var(--border); padding: 3px 6px; }
 .modal td input:focus { border-color: var(--accent); outline: none; }
+.modal td input[type="checkbox"] { width: auto; }
+.modal td input.num { width: 64px; }
+.modal td.st { white-space: normal; font-size: 12.5px; }
+.modal td.st.warn { color: #bf8700; }
+.modal tr.bad td.st { color: var(--danger); }
+.modal tr.off td { color: var(--muted); }
+.modal .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.modal .summary { color: var(--muted); font-size: 12.5px; margin-right: auto; }
+.modal .summary.error { color: var(--danger); }
 .modal .btns { display: flex; justify-content: flex-end; gap: 8px; }
 .modal .btns .push { margin-right: auto; }
 .modal td.sub { color: var(--muted); }
@@ -137,6 +146,9 @@ progress { flex: 1; min-width: 120px; height: 10px; accent-color: var(--accent);
       <label class="radio"><input type="radio" name="orient" value="landscape">全部橫式</label>
       <span class="spacer"></span>
       <label class="radio"><input type="checkbox" id="chkBookmarks" checked>加書籤</label>
+      <button id="btnBmExport">匯出書籤</button>
+      <button id="btnBmImport">匯入書籤</button>
+      <input type="file" id="bmInput" accept=".csv,.pdf,text/csv,application/pdf" hidden>
     </div>
     <div class="row">
       <span class="label" style="margin-left:0">輸出檔名：</span>
@@ -712,9 +724,9 @@ function getPdfjs(file) {
 // ---------- 原檔書籤 ----------
 const DEST_TYPES = ["XYZ", "Fit", "FitH", "FitV", "FitR", "FitB", "FitBH", "FitBV"];
 
-// 讀出原檔書籤，攤平成一層：Map(原檔頁索引 -> { title, view })，同一頁只取第一個
-async function loadOutline(file) {
-  const flat = new Map();
+// 讀出 PDF 的所有書籤，依順序攤平成一層：[{ page(頁索引), title, view }]
+async function readOutline(file) {
+  const out = [];
   try {
     const doc = await getPdfjs(file);
     const walk = async (list) => {
@@ -724,8 +736,8 @@ async function loadOutline(file) {
           const dest = typeof o.dest === "string" ? await doc.getDestination(o.dest) : o.dest;
           if (title && Array.isArray(dest) && dest[0] != null) {
             const page = typeof dest[0] === "object" ? await doc.getPageIndex(dest[0]) : dest[0];
-            if (Number.isInteger(page) && page >= 0 && page < file.total && !flat.has(page))
-              flat.set(page, { title, view: DEST_TYPES.includes(dest[1]?.name) ? [dest[1].name, ...dest.slice(2)] : null });
+            if (Number.isInteger(page) && page >= 0 && page < file.total)
+              out.push({ page, title, view: DEST_TYPES.includes(dest[1]?.name) ? [dest[1].name, ...dest.slice(2)] : null });
           }
         } catch { /* 指不到頁面的書籤略過 */ }
         await walk(o.items);
@@ -733,6 +745,13 @@ async function loadOutline(file) {
     };
     await walk(await doc.getOutline());
   } catch { /* 讀不到書籤就當作沒有 */ }
+  return out;
+}
+
+// 原檔書籤當預設值：Map(原檔頁索引 -> { title, view })，同一頁只取第一個
+async function loadOutline(file) {
+  const flat = new Map();
+  for (const o of await readOutline(file)) if (!flat.has(o.page)) flat.set(o.page, { title: o.title, view: o.view });
   return flat;
 }
 
@@ -953,6 +972,192 @@ async function buildMerged(list, orientation, onProgress) {
   return out.save();
 }
 
+function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+const outStem = () => ($("outName").value.trim() || "合併.pdf").replace(/[\\/:*?"<>|]/g, "_").replace(/\.pdf$/i, "");
+
+// ---------- 匯出／匯入書籤 ----------
+// 合併後每一頁的來源：[{ it, k, page }]，索引 = 合併後頁碼 - 1
+const mergedPages = () => items.flatMap((it) => it.sel.map((page, k) => ({ it, k, page })));
+
+function allMarks() { // [{ n: 合併後頁碼, title }]
+  const out = [];
+  let base = 0;
+  for (const it of items) {
+    for (const m of itemMarks(it)) out.push({ n: base + m.k + 1, title: m.title });
+    base += it.sel.length;
+  }
+  return out;
+}
+
+const csvCell = (v) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+
+function exportBookmarks() {
+  if (editing) commitEdit(false);
+  if (commitPvBm()) render();
+  const marks = allMarks();
+  if (!marks.length) return toast("目前沒有任何書籤可以匯出");
+  // 加 BOM，Excel 開啟中文才不會亂碼
+  const text = "﻿" + ["頁碼,書籤名稱", ...marks.map((m) => `${m.n},${csvCell(m.title)}`)].join("\r\n") + "\r\n";
+  const name = `${outStem()}_書籤.csv`;
+  saveBlob(new Blob([text], { type: "text/csv;charset=utf-8" }), name);
+  setStatus(`已匯出 ${marks.length} 個書籤：${name}`);
+}
+
+function parseCsv(text) {
+  const firstLine = text.split(/\r?\n/, 1)[0];
+  const sep = !firstLine.includes(",") && firstLine.includes("\t") ? "\t" : ",";
+  const rows = [];
+  let row = [], cell = "", quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c !== '"') cell += c;
+      else if (text[i + 1] === '"') { cell += '"'; i++; }
+      else quoted = false;
+    } else if (c === '"') quoted = true;
+    else if (c === sep) { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell); rows.push(row); row = []; cell = "";
+    } else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+
+// Excel 中文版另存 CSV 常是 Big5，UTF-8 解不開就改用 Big5
+function decodeText(bytes) {
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  catch { return new TextDecoder("big5").decode(bytes); }
+}
+
+// 讀匯入檔：[{ n: 頁碼, title }]
+async function readBookmarkFile(f) {
+  const bytes = new Uint8Array(await f.arrayBuffer());
+  if (/\.pdf$/i.test(f.name) || String.fromCharCode(...bytes.slice(0, 5)) === "%PDF-") {
+    const tmp = { bytes, pdfjs: null, total: Infinity };
+    try {
+      return (await readOutline(tmp)).map((o) => ({ n: o.page + 1, title: o.title }));
+    } finally {
+      if (tmp.pdfjs) tmp.pdfjs.then((d) => d.destroy()).catch(() => {});
+    }
+  }
+  const out = [];
+  for (const row of parseCsv(decodeText(bytes))) {
+    const num = [...(row[0] || "").trim()].map((c) => RANGE_TRANS[c] ?? c).join("");
+    if (!/^\d+$/.test(num)) continue; // 標題行、空行
+    // 名稱裡有逗號但沒加引號時，把後面的欄位接回來
+    out.push({ n: +num, title: row.slice(1).join(",").trim() });
+  }
+  return out;
+}
+
+async function importBookmarks(f) {
+  if (!items.length) return toast("請先加入 PDF 檔案，再匯入書籤");
+  let list;
+  try {
+    list = await readBookmarkFile(f);
+  } catch (e) {
+    return toast(`無法讀取「${f.name}」：${e.message || e}`, true);
+  }
+  if (!list.length) return toast(`「${f.name}」裡沒有找到任何書籤。\nCSV 每一行請寫「頁碼,書籤名稱」。`, true);
+  if (editing) commitEdit(false);
+  if (commitPvBm()) render();
+  const n = await importDialog(f.name, list);
+  if (n) toast(`已套用 ${n} 個書籤`);
+}
+
+function importDialog(fileName, list) {
+  return new Promise((resolve) => {
+    const pages = mergedPages();
+    const rows = list.map((e) => ({ ...e, on: true }));
+    const bg = document.createElement("div");
+    bg.className = "modal-bg";
+    const m = document.createElement("div");
+    m.className = "modal";
+    m.innerHTML = `<h2>匯入書籤</h2><div class="hint"></div>
+      <div class="tools"><span class="label">全部頁碼：</span><button data-act="minus">−1</button><button data-act="plus">+1</button>
+      <span class="label">勾選：</span><button data-act="all">全選</button><button data-act="none">全不選</button></div>
+      <div class="body"><table><thead><tr><th style="width:44px">套用</th><th style="width:84px">頁碼</th><th>這頁目前是</th><th style="width:38%">書籤名稱</th></tr></thead><tbody></tbody></table></div>
+      <div class="btns"><span class="summary"></span><button class="primary" data-act="ok">套用</button><button data-act="cancel">取消</button></div>`;
+    m.querySelector(".hint").textContent = `從「${fileName}」讀到 ${rows.length} 個書籤，頁碼是合併後的頁碼（目前共 ${pages.length} 頁）。可以修改頁碼和名稱，或取消勾選不要的書籤。`;
+    const tb = m.querySelector("tbody");
+    for (const r of rows) {
+      r.tr = document.createElement("tr");
+      const td = () => document.createElement("td");
+      const c1 = td(), c2 = td(), c4 = td();
+      r.chk = Object.assign(document.createElement("input"), { type: "checkbox", checked: true });
+      r.num = Object.assign(document.createElement("input"), { type: "number", min: 1, className: "num", value: r.n });
+      r.name = Object.assign(document.createElement("input"), { value: r.title });
+      r.st = td();
+      r.st.className = "st";
+      c1.appendChild(r.chk); c2.appendChild(r.num); c4.appendChild(r.name);
+      r.tr.append(c1, c2, r.st, c4);
+      tb.appendChild(r.tr);
+      r.chk.onchange = () => { r.on = r.chk.checked; validate(); };
+      r.num.oninput = () => { r.n = r.num.value === "" ? NaN : +r.num.value; validate(); };
+      r.name.oninput = () => { r.title = r.name.value; validate(); };
+    }
+    const okBtn = m.querySelector('[data-act="ok"]'), summary = m.querySelector(".summary");
+    function validate() {
+      const count = new Map();
+      for (const r of rows) if (r.on && Number.isInteger(r.n)) count.set(r.n, (count.get(r.n) || 0) + 1);
+      let good = 0, bad = 0;
+      for (const r of rows) {
+        const pg = Number.isInteger(r.n) ? pages[r.n - 1] : null;
+        let text, err = false, warn = false;
+        if (!pg) { text = `超出範圍（合併後共 ${pages.length} 頁）`; err = true; }
+        else {
+          text = `${pg.it.name}（原檔第 ${pg.page + 1} 頁）`;
+          const cur = pg.it.marks[pg.page];
+          if (!isFirstOccurrence(pg.it, pg.k)) { text += "：這頁在這一項裡重複出現，不能設書籤"; err = true; }
+          else if (count.get(r.n) > 1) { text += "：和其他行指到同一頁"; err = true; }
+          else if (!r.title.trim()) { text += "：書籤名稱是空的"; err = true; }
+          else if (cur && cur !== r.title.trim()) { text += `　⚠ 已有書籤「${cur}」，會被取代`; warn = true; }
+        }
+        r.st.textContent = text;
+        r.st.classList.toggle("warn", warn && r.on);
+        r.tr.classList.toggle("bad", err && r.on);
+        r.tr.classList.toggle("off", !r.on);
+        if (r.on) err ? bad++ : good++;
+      }
+      summary.textContent = bad ? `有 ${bad} 行需要修正或取消勾選` : `將套用 ${good} 個書籤`;
+      summary.classList.toggle("error", !!bad);
+      okBtn.disabled = !!bad || !good;
+    }
+    const shift = (d) => { for (const r of rows) if (Number.isInteger(r.n)) { r.n += d; r.num.value = r.n; } validate(); };
+    const close = (ok) => {
+      let n = 0;
+      if (ok) for (const r of rows) if (r.on) { const pg = pages[r.n - 1]; setMark(pg.it, pg.page, r.title); n++; }
+      bg.remove();
+      render();
+      resolve(n);
+    };
+    const act = (name, fn) => (m.querySelector(`[data-act="${name}"]`).onclick = fn);
+    act("minus", () => shift(-1));
+    act("plus", () => shift(1));
+    act("all", () => { rows.forEach((r) => (r.chk.checked = r.on = true)); validate(); });
+    act("none", () => { rows.forEach((r) => { r.chk.checked = r.on = false; }); validate(); });
+    act("ok", () => close(true));
+    act("cancel", () => close(false));
+    m.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); close(false); } });
+    validate();
+    bg.appendChild(m);
+    document.body.appendChild(bg);
+    (okBtn.disabled ? m.querySelector('[data-act="cancel"]') : okBtn).focus();
+  });
+}
+
 let merging = false;
 async function merge() {
   if (merging) return;
@@ -971,14 +1176,7 @@ async function merge() {
   setStatus("合併中…");
   try {
     const bytes = await buildMerged(list, orient(), (d, t) => ($("progress").value = (d * 100) / t));
-    const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    saveBlob(new Blob([bytes], { type: "application/pdf" }), name);
     $("progress").value = 100;
     setStatus(`完成：${name}（${list.reduce((s, it) => s + it.sel.length, 0)} 頁），已交給瀏覽器下載`);
   } catch (e) {
@@ -1007,6 +1205,9 @@ $("btnPrev").onclick = () => flip(-1);
 $("btnNext").onclick = () => flip(1);
 $("btnSplit").onclick = splitHere;
 $("btnMerge").onclick = merge;
+$("btnBmExport").onclick = exportBookmarks;
+$("btnBmImport").onclick = () => $("bmInput").click();
+$("bmInput").onchange = (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) importBookmarks(f); };
 $("pvBm").addEventListener("input", () => (pvBmDirty = true));
 $("pvBm").addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
@@ -1023,7 +1224,7 @@ window.addEventListener("beforeunload", (e) => { if (items.length) { e.preventDe
 // 測試用
 window.__pdfm = { get items() { return items; }, set items(v) { items = v; }, get pv() { return pv; }, set pv(v) { pv = v; },
   get selected() { return selected; }, addFiles, render, splitHere, editCell, commitEdit, duplicate, rotate, selectAll, flip,
-  buildMerged, confirmBookmarks, loadOutline, itemMarks, parseRange, formatRange, sortByName, selectOnly, get editing() { return editing; } };
+  buildMerged, confirmBookmarks, loadOutline, itemMarks, parseCsv, allMarks, parseRange, formatRange, sortByName, selectOnly, get editing() { return editing; } };
 render();
 </script>
 </body>
