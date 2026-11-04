@@ -97,6 +97,8 @@ progress { flex: 1; min-width: 120px; height: 10px; accent-color: var(--accent);
 .modal .btns { display: flex; justify-content: flex-end; gap: 8px; }
 .modal .btns .push { margin-right: auto; }
 .modal td.sub { color: var(--muted); }
+.thumb { position: fixed; z-index: 30; pointer-events: none; background: var(--panel); color: var(--muted); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow); padding: 6px; font-size: 12.5px; }
+.thumb canvas { display: block; background: #fff; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #24292f; color: #fff; padding: 10px 16px; border-radius: 8px; box-shadow: var(--shadow); z-index: 20; max-width: min(560px, calc(100% - 32px)); white-space: pre-line; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.show { opacity: 1; }
 .toast.error { background: var(--danger); }
@@ -846,6 +848,80 @@ $("pvBox").addEventListener("wheel", (e) => {
   flip(e.deltaY < 0 ? -1 : 1);
 }, { passive: false });
 
+// ---------- 滑鼠移到格子上顯示縮圖 ----------
+// 停留一下才畫、畫過的記起來，快速掃過不會拖慢
+const THUMB_SIZE = 220, THUMB_DELAY = 120, THUMB_CACHE_MAX = 80;
+const thumbCache = new Map(); // "fileId:page:rotation" -> canvas
+let thumbEl = null, thumbTimer = null, thumbToken = null;
+
+async function thumbCanvas(it, page) {
+  const pg = await (await getPdfjs(files.get(it.fileId))).getPage(page + 1);
+  const [x1, y1, x2, y2] = pg.view;
+  const rotation = (pg.rotate + extraRotation(x2 - x1, y2 - y1, pg.rotate, it.rot, orient())) % 360;
+  const key = `${it.fileId}:${page}:${rotation}`;
+  let canvas = thumbCache.get(key);
+  if (canvas) {
+    thumbCache.delete(key); // 移到最後，當作最近用過
+  } else {
+    const base = pg.getViewport({ scale: 1, rotation });
+    const scale = THUMB_SIZE / Math.max(base.width, base.height);
+    const dpr = window.devicePixelRatio || 1;
+    const vp = pg.getViewport({ scale: scale * dpr, rotation });
+    canvas = document.createElement("canvas");
+    canvas.width = Math.floor(vp.width);
+    canvas.height = Math.floor(vp.height);
+    canvas.style.width = Math.round(vp.width / dpr) + "px";
+    canvas.style.height = Math.round(vp.height / dpr) + "px";
+    await pg.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+    if (thumbCache.size >= THUMB_CACHE_MAX) thumbCache.delete(thumbCache.keys().next().value);
+  }
+  thumbCache.set(key, canvas);
+  return canvas;
+}
+
+function placeThumb(el, cell) {
+  const r = cell.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+  let x = r.right + 8;
+  if (x + w > innerWidth - 8) x = r.left - w - 8;
+  const y = Math.max(8, Math.min(r.top + r.height / 2 - h / 2, innerHeight - h - 8));
+  el.style.left = Math.max(8, x) + "px";
+  el.style.top = y + "px";
+}
+
+function hideThumb() {
+  clearTimeout(thumbTimer);
+  thumbToken = null;
+  if (thumbEl) thumbEl.remove();
+  thumbEl = null;
+}
+
+// target() 在滑鼠移進來時才算，回傳 { it, page } 或 null（例如頁碼超出範圍）
+function hoverThumb(cell, target) {
+  cell.addEventListener("mouseenter", () => {
+    hideThumb();
+    const t = target();
+    if (!t) return;
+    const token = (thumbToken = {});
+    thumbTimer = setTimeout(async () => {
+      const el = (thumbEl = document.createElement("div"));
+      el.className = "thumb";
+      el.textContent = "載入中…";
+      document.body.appendChild(el);
+      placeThumb(el, cell);
+      try {
+        const canvas = await thumbCanvas(t.it, t.page);
+        if (thumbToken !== token) return;
+        el.textContent = "";
+        el.appendChild(canvas);
+        placeThumb(el, cell);
+      } catch {
+        if (thumbToken === token) el.textContent = "無法顯示縮圖";
+      }
+    }, THUMB_DELAY);
+  });
+  cell.addEventListener("mouseleave", hideThumb);
+}
+
 // ---------- 合併前確認書籤 ----------
 function confirmBookmarks() {
   return new Promise((resolve) => {
@@ -867,11 +943,12 @@ function confirmBookmarks() {
         const def = flat.get(page)?.title || "";
         if (!isFirstOccurrence(it, k) || !(it.marks[page] || def)) return;
         const tr = document.createElement("tr");
-        const tds = [`合併後第 ${base + k} 頁`, `${it.name}（原檔第 ${page + 1} 頁）`].map((t) => {
+        const tds = [`合併後第 ${base + k} 頁`, `${it.name}（第 ${page + 1} 頁）`].map((t) => {
           const td = document.createElement("td");
           td.textContent = t;
           return td;
         });
+        hoverThumb(tds[1], () => ({ it, page }));
         const td = document.createElement("td");
         const input = document.createElement("input");
         input.value = it.marks[page] || "";
@@ -890,6 +967,7 @@ function confirmBookmarks() {
     }
     const close = (ok) => {
       if (ok) for (const { input, it, page } of rows) setMark(it, page, input.value);
+      hideThumb();
       bg.remove();
       render();
       resolve(ok);
@@ -1101,6 +1179,10 @@ function importDialog(fileName, list) {
       r.name = Object.assign(document.createElement("input"), { value: r.title });
       r.st = td();
       r.st.className = "st";
+      hoverThumb(r.st, () => {
+        const pg = Number.isInteger(r.n) ? pages[r.n - 1] : null;
+        return pg && { it: pg.it, page: pg.page };
+      });
       c1.appendChild(r.chk); c2.appendChild(r.num); c4.appendChild(r.name);
       r.tr.append(c1, c2, r.st, c4);
       tb.appendChild(r.tr);
@@ -1118,7 +1200,7 @@ function importDialog(fileName, list) {
         let text, err = false, warn = false;
         if (!pg) { text = `超出範圍（合併後共 ${pages.length} 頁）`; err = true; }
         else {
-          text = `${pg.it.name}（原檔第 ${pg.page + 1} 頁）`;
+          text = `${pg.it.name}（第 ${pg.page + 1} 頁）`;
           const cur = pg.it.marks[pg.page];
           if (!isFirstOccurrence(pg.it, pg.k)) { text += "：這頁在這一項裡重複出現，不能設書籤"; err = true; }
           else if (count.get(r.n) > 1) { text += "：和其他行指到同一頁"; err = true; }
@@ -1139,6 +1221,7 @@ function importDialog(fileName, list) {
     const close = (ok) => {
       let n = 0;
       if (ok) for (const r of rows) if (r.on) { const pg = pages[r.n - 1]; setMark(pg.it, pg.page, r.title); n++; }
+      hideThumb();
       bg.remove();
       render();
       resolve(n);
