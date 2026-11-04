@@ -66,6 +66,10 @@ input[type="text"].outname { font: inherit; padding: 4px 8px; border: 1px solid 
 progress { flex: 1; min-width: 120px; height: 10px; accent-color: var(--accent); }
 .status { color: var(--muted); font-size: 12.5px; margin-top: 6px; min-height: 1.5em; }
 .status.error { color: var(--danger); }
+.pv-bm { justify-content: center; }
+.pv-bm input { font: inherit; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); flex: 1; max-width: 360px; }
+.pv-bm input:focus { border-color: var(--accent); outline: none; }
+.pv-bm input:disabled { opacity: .55; }
 .pv-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pv-box { flex: 1; min-height: 200px; margin-top: 6px; background: var(--preview-bg); border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
 .pv-box canvas { box-shadow: 0 2px 10px rgba(0,0,0,.35); background: #fff; }
@@ -98,11 +102,11 @@ progress { flex: 1; min-width: 120px; height: 10px; accent-color: var(--accent);
 <div class="app">
   <section class="panel">
     <h1><img src="data:image/png;base64,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" alt="">PDF 合併工具</h1>
-    <div class="hint">把 PDF 檔案或資料夾拖進清單；雙擊「頁碼範圍」或「書籤」可修改。檔案只在你的電腦上處理，不會上傳。</div>
+    <div class="hint">把 PDF 檔案或資料夾拖進清單；雙擊「頁碼範圍」或「書籤」可修改；在右邊預覽翻到任何一頁都能替它加書籤。檔案只在你的電腦上處理，不會上傳。</div>
     <div class="list-wrap" id="listWrap">
       <table>
         <colgroup><col style="width:27%"><col style="width:15%"><col style="width:8%"><col style="width:15%"><col style="width:35%"></colgroup>
-        <thead><tr><th>檔名</th><th>頁碼範圍</th><th class="c-pages">頁數</th><th class="c-rot">旋轉</th><th>書籤</th></tr></thead>
+        <thead><tr><th>檔名</th><th>頁碼範圍</th><th class="c-pages">頁數</th><th class="c-rot">旋轉</th><th>書籤（第 1 頁）</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
       <div class="empty" id="empty">把 PDF 拖到這裡，或按「新增檔案」</div>
@@ -133,7 +137,6 @@ progress { flex: 1; min-width: 120px; height: 10px; accent-color: var(--accent);
       <label class="radio"><input type="radio" name="orient" value="landscape">全部橫式</label>
       <span class="spacer"></span>
       <label class="radio"><input type="checkbox" id="chkBookmarks" checked>加書籤</label>
-      <label class="radio"><input type="checkbox" id="chkKeepBm" checked>保留原檔書籤</label>
     </div>
     <div class="row">
       <span class="label" style="margin-left:0">輸出檔名：</span>
@@ -152,6 +155,7 @@ progress { flex: 1; min-width: 120px; height: 10px; accent-color: var(--accent);
       <span class="pos" id="pvPos"></span>
       <button id="btnNext">下一頁 ▶</button>
     </div>
+    <div class="row pv-bm"><span class="label" style="margin-left:0">這頁的書籤：</span><input type="text" id="pvBm"></div>
     <button class="split" id="btnSplit">✂ 從這頁拆開（這頁成為下一段的開頭）</button>
   </section>
 </div>
@@ -288,19 +292,24 @@ function extraRotation(w, h, baseRot, rot, orient) {
 // ---------- 資料 ----------
 let fileSeq = 0, itemSeq = 0;
 const files = new Map();   // id -> { name, bytes, total, libDoc, pdfjs }
-let items = [];            // { uid, fileId, name, total, sel, rot, title }
+let items = [];            // { uid, fileId, name, total, sel, rot, marks: { 原檔頁索引: 書籤名稱 } }
 let selected = new Set();  // uid
 let anchor = null;         // uid
 let pv = { item: null, page: 0 };
 
-const stem = (it) => it.name.replace(/\.pdf$/i, "");
 const rangeText = (it) => formatRange(it.sel, it.total);
-const autoTitle = (it) => { const r = rangeText(it); return r ? `${stem(it)} (${r})` : stem(it); };
-function setPages(it, sel) {
-  const wasAuto = it.title === autoTitle(it);
-  it.sel = [...sel];
-  if (wasAuto) it.title = autoTitle(it);
+function setPages(it, sel) { it.sel = [...sel]; }
+// 書籤綁在原檔頁面上；同一頁在項目裡重複出現時，書籤放在第一次出現的位置
+const isFirstOccurrence = (it, k) => it.sel.indexOf(it.sel[k]) === k;
+function itemMarks(it) { // [{ k: 項目內第幾頁, page: 原檔頁索引, title }]
+  return it.sel.flatMap((page, k) => (isFirstOccurrence(it, k) && it.marks[page] ? [{ k, page, title: it.marks[page] }] : []));
 }
+function setMark(it, page, title) {
+  title = (title || "").trim();
+  if (title) it.marks[page] = title;
+  else delete it.marks[page];
+}
+const defaultMarks = (file) => Object.fromEntries([...file.flat].map(([page, o]) => [page, o.title]));
 const orient = () => document.querySelector('input[name="orient"]:checked').value;
 const indexOf = (it) => items.indexOf(it);
 const selIndexes = () => items.map((it, i) => (selected.has(it.uid) ? i : -1)).filter((i) => i >= 0);
@@ -324,6 +333,7 @@ function setStatus(msg, isError = false) {
 let editing = null; // { input, item, field }
 
 function render(keepScroll = true) {
+  commitPvBm();
   editing = null;
   const tb = $("tbody");
   tb.innerHTML = "";
@@ -333,9 +343,12 @@ function render(keepScroll = true) {
     if (selected.has(it.uid)) tr.classList.add("sel");
     if (pv.item === it) tr.classList.add("pv");
     const r = rangeText(it);
+    const ms = itemMarks(it);
+    const firstMark = it.marks[it.sel[0]] || "";
+    const bmText = (firstMark || (ms.length ? "—" : "（無書籤）")) + (ms.length > 1 || (ms.length && !firstMark) ? `　共 ${ms.length} 個` : "");
     const cells = [
       [it.name, "c-name"], [r || "全部", "c-range editable"], [it.sel.length, "c-pages"],
-      [ROT_TEXT[it.rot], "c-rot"], [it.title || "（不加書籤）", "c-title editable" + (it.title ? "" : " empty-title")],
+      [ROT_TEXT[it.rot], "c-rot"], [bmText, "c-title editable" + (firstMark ? "" : " empty-title")],
     ];
     for (const [text, cls] of cells) {
       const td = document.createElement("td");
@@ -401,10 +414,10 @@ async function addFiles(fileList) {
       }
       const id = ++fileSeq;
       const total = libDoc.getPageCount();
-      files.set(id, { name: f.name, bytes, total, libDoc, pdfjs: null });
-      const it = { uid: ++itemSeq, fileId: id, name: f.name, total, sel: [...Array(total).keys()], rot: 0, title: "", bm: {} };
-      it.title = autoTitle(it);
-      items.push(it);
+      const file = { name: f.name, bytes, total, libDoc, pdfjs: null };
+      files.set(id, file);
+      file.flat = await loadOutline(file);
+      items.push({ uid: ++itemSeq, fileId: id, name: f.name, total, sel: [...Array(total).keys()], rot: 0, marks: defaultMarks(file) });
     } catch (e) {
       errors.push(e.message);
     }
@@ -448,7 +461,7 @@ function duplicate() {
   const newUids = [];
   for (let k = sel.length - 1; k >= 0; k--) {
     const src = items[sel[k]];
-    const copy = { ...src, uid: ++itemSeq, sel: [...src.sel], bm: { ...src.bm } };
+    const copy = { ...src, uid: ++itemSeq, sel: [...src.sel], marks: { ...src.marks } };
     items.splice(sel[k] + 1, 0, copy);
     newUids.push(copy.uid);
   }
@@ -489,9 +502,12 @@ function splitHere() {
   const k = pv.page;
   if (k === 0) return toast("目前這頁已經是這一段的第一頁。\n請翻到想拆開的那一頁（它會成為下一段的開頭）再按。");
   const idx = indexOf(it);
-  const second = { ...it, uid: ++itemSeq, sel: it.sel.slice(k), bm: { ...it.bm } };
-  second.title = autoTitle(second);
+  const second = { ...it, uid: ++itemSeq, sel: it.sel.slice(k) };
   setPages(it, it.sel.slice(0, k));
+  // 書籤跟著頁面分到各自那一段
+  const keep = (part) => Object.fromEntries(Object.entries(it.marks).filter(([page]) => part.sel.includes(+page)));
+  second.marks = keep(second);
+  it.marks = keep(it);
   items.splice(idx + 1, 0, second);
   pv = { item: second, page: 0 };
   selected = new Set([second.uid]);
@@ -507,7 +523,7 @@ function editCell(i, field, text) {
   const tr = $("tbody").children[indexOf(it)];
   const td = tr.querySelector(field === "range" ? ".c-range" : ".c-title");
   const input = document.createElement("input");
-  input.value = text ?? (field === "title" ? it.title : rangeText(it));
+  input.value = text ?? (field === "title" ? it.marks[it.sel[0]] || "" : rangeText(it));
   td.textContent = "";
   td.appendChild(input);
   input.focus();
@@ -526,7 +542,7 @@ function commitEdit(fromEnter) {
   const { input, item, field } = editing;
   const text = input.value.trim();
   if (field === "title") {
-    item.title = text;
+    setMark(item, item.sel[0], text);
   } else {
     try {
       setPages(item, parseRange(text, item.total));
@@ -696,48 +712,40 @@ function getPdfjs(file) {
 // ---------- 原檔書籤 ----------
 const DEST_TYPES = ["XYZ", "Fit", "FitH", "FitV", "FitR", "FitB", "FitBH", "FitBV"];
 
-// 讀出原檔書籤樹：{ id, title, page(原檔頁索引或 null), view, bold, italic, color, children }
-function loadOutline(file) {
-  if (!file.outline) file.outline = (async () => {
+// 讀出原檔書籤，攤平成一層：Map(原檔頁索引 -> { title, view })，同一頁只取第一個
+async function loadOutline(file) {
+  const flat = new Map();
+  try {
     const doc = await getPdfjs(file);
-    const raw = (await doc.getOutline()) || [];
-    let seq = 0;
-    const conv = async (list) => {
-      const out = [];
-      for (const o of list) {
-        let page = null, view = null;
+    const walk = async (list) => {
+      for (const o of list || []) {
+        const title = (o.title || "").trim();
         try {
           const dest = typeof o.dest === "string" ? await doc.getDestination(o.dest) : o.dest;
-          if (Array.isArray(dest) && dest[0] != null) {
-            page = typeof dest[0] === "object" ? await doc.getPageIndex(dest[0]) : Number.isInteger(dest[0]) ? dest[0] : null;
-            if (DEST_TYPES.includes(dest[1]?.name)) view = [dest[1].name, ...dest.slice(2)];
+          if (title && Array.isArray(dest) && dest[0] != null) {
+            const page = typeof dest[0] === "object" ? await doc.getPageIndex(dest[0]) : dest[0];
+            if (Number.isInteger(page) && page >= 0 && page < file.total && !flat.has(page))
+              flat.set(page, { title, view: DEST_TYPES.includes(dest[1]?.name) ? [dest[1].name, ...dest.slice(2)] : null });
           }
-        } catch { page = null; }
-        const c = o.color && [...o.color];
-        out.push({ id: ++seq, title: (o.title || "").trim(), page, view, bold: !!o.bold, italic: !!o.italic,
-          color: c && c.some((v) => v) ? c : null, children: await conv(o.items || []) });
+        } catch { /* 指不到頁面的書籤略過 */ }
+        await walk(o.items);
       }
-      return out;
     };
-    return conv(raw);
-  })().catch(() => []);
-  return file.outline;
+    await walk(await doc.getOutline());
+  } catch { /* 讀不到書籤就當作沒有 */ }
+  return flat;
 }
 
-// 依項目的頁碼範圍篩選書籤：指向沒選到的頁就拿掉，但子書籤還有效時保留這一層
-function itemOutline(it, tree) {
-  const pos = new Map();
-  it.sel.forEach((p, k) => { if (!pos.has(p)) pos.set(p, k); });
-  const walk = (list) => list.flatMap((node) => {
-    const children = walk(node.children);
-    const k = node.page != null ? pos.get(node.page) : undefined;
-    if (k !== undefined) return [{ node, page: k, own: true, children }];
-    return children.length ? [{ node, page: children[0].page, own: false, children }] : [];
-  });
-  return walk(tree);
+// ---------- 預覽區的「這頁的書籤」 ----------
+let pvBmTarget = null, pvBmDirty = false; // { it, page }；只有使用者打過字才存
+function commitPvBm() {
+  const t = pvBmTarget, v = $("pvBm").value.trim();
+  if (!pvBmDirty) return false;
+  pvBmDirty = false;
+  if (!t || !items.includes(t.it) || (t.it.marks[t.page] || "") === v) return false;
+  setMark(t.it, t.page, v);
+  return true;
 }
-
-const bmTitle = (it, node) => it.bm[node.id] ?? node.title;
 
 let renderToken = 0, renderTask = null;
 async function renderPreview() {
@@ -748,7 +756,11 @@ async function renderPreview() {
   if (!it) {
     $("pvTitle").textContent = "預覽";
     $("pvPos").textContent = "";
-    ["btnPrev", "btnNext", "btnSplit"].forEach((id) => setBtn(id, false));
+    ["btnPrev", "btnNext", "btnSplit", "pvBm"].forEach((id) => setBtn(id, false));
+    pvBmTarget = null;
+    pvBmDirty = false;
+    $("pvBm").value = "";
+    $("pvBm").placeholder = "";
     box.innerHTML = '<div class="pv-msg">加入檔案後在這裡預覽</div>';
     return;
   }
@@ -757,7 +769,14 @@ async function renderPreview() {
   const src = it.sel[pv.page];
   let info = `第 ${pv.page + 1} / ${it.sel.length} 頁`;
   if (rangeText(it)) info += `，原檔第 ${src + 1} 頁`;
-  $("pvTitle").textContent = `預覽：${it.name}（${info}）`;
+  const first = isFirstOccurrence(it, pv.page);
+  pvBmTarget = first ? { it, page: src } : null;
+  pvBmDirty = false;
+  const bmVal = first ? it.marks[src] || "" : "";
+  if ($("pvBm").value !== bmVal) $("pvBm").value = bmVal;
+  setBtn("pvBm", first);
+  $("pvBm").placeholder = first ? "（沒有書籤，輸入名稱即可新增）" : "這頁在這一項裡重複出現，書籤設在第一次出現的那頁";
+  $("pvTitle").textContent = `預覽：${it.name}（${info}）` + (bmVal ? `　🔖 ${bmVal}` : "");
   $("pvTitle").title = $("pvTitle").textContent;
   $("pvPos").textContent = `合併後 ${pos + 1} / ${total}`;
   setBtn("btnPrev", pos > 0);
@@ -809,55 +828,49 @@ $("pvBox").addEventListener("wheel", (e) => {
 }, { passive: false });
 
 // ---------- 合併前確認書籤 ----------
-async function confirmBookmarks(keepOrig) {
-  const outlines = await Promise.all(items.map((it) => (keepOrig ? loadOutline(files.get(it.fileId)) : [])));
+function confirmBookmarks() {
   return new Promise((resolve) => {
     const bg = document.createElement("div");
     bg.className = "modal-bg";
     const m = document.createElement("div");
     m.className = "modal";
-    m.innerHTML = `<h2>確認書籤</h2><div class="hint">合併後的 PDF 會有以下書籤，可以直接修改；留空表示不加這個書籤（它底下的書籤會往上提一層）。
-      按「全部清除」可一次清空，「恢復預設」可改回原本的名稱。</div>
-      <div class="body"><table><thead><tr><th style="width:90px">起始頁</th><th>來源</th><th style="width:42%">書籤名稱</th></tr></thead><tbody></tbody></table></div>
+    m.innerHTML = `<h2>確認書籤</h2><div class="hint">合併後的 PDF 會有以下書籤（依頁碼排列），可以直接修改；留空表示這頁不加書籤。
+      要在其他頁加書籤，請在右邊預覽翻到那一頁，在「這頁的書籤」輸入。按「全部清除」可一次清空，「恢復預設」會改回原檔的書籤。</div>
+      <div class="body"><table><thead><tr><th style="width:110px">頁碼</th><th>來源</th><th style="width:42%">書籤名稱</th></tr></thead><tbody></tbody></table></div>
       <div class="btns"><button data-act="clear">全部清除</button><button class="push" data-act="reset">恢復預設</button>
       <button class="primary" data-act="ok">確定，繼續合併</button><button data-act="cancel">取消</button></div>`;
     const tb = m.querySelector("tbody");
-    const rows = []; // { input, it, node, def }
-    const addRow = (it, node, startPage, source, depth, value, def) => {
-      const tr = document.createElement("tr");
-      const tds = [`第 ${startPage} 頁`, source].map((t) => {
+    const rows = []; // { input, it, page, def }
+    let base = 1;
+    for (const it of items) {
+      const flat = files.get(it.fileId).flat;
+      it.sel.forEach((page, k) => {
+        const def = flat.get(page)?.title || "";
+        if (!isFirstOccurrence(it, k) || !(it.marks[page] || def)) return;
+        const tr = document.createElement("tr");
+        const tds = [`合併後第 ${base + k} 頁`, `${it.name}（原檔第 ${page + 1} 頁）`].map((t) => {
+          const td = document.createElement("td");
+          td.textContent = t;
+          return td;
+        });
         const td = document.createElement("td");
-        td.textContent = t;
-        if (node) td.className = "sub";
-        return td;
+        const input = document.createElement("input");
+        input.value = it.marks[page] || "";
+        input.placeholder = "（不加書籤）";
+        td.appendChild(input);
+        rows.push({ input, it, page, def });
+        tr.append(...tds, td);
+        tb.appendChild(tr);
       });
-      const td = document.createElement("td");
-      td.style.paddingLeft = 8 + depth * 18 + "px";
-      const input = document.createElement("input");
-      input.value = value;
-      td.appendChild(input);
-      rows.push({ input, it, node, def });
-      tr.append(...tds, td);
+      base += it.sel.length;
+    }
+    if (!rows.length) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="3" class="sub">目前沒有任何書籤。合併出來的 PDF 不會有書籤；要加的話，請先在右邊預覽翻到那一頁，在「這頁的書籤」輸入。</td>`;
       tb.appendChild(tr);
-    };
-    let page = 1;
-    items.forEach((it, i) => {
-      const r = rangeText(it);
-      addRow(it, null, page, it.name + (r ? `（第 ${r} 頁）` : ""), 0, it.title, autoTitle(it));
-      const walk = (list, depth) => list.forEach(({ node, page: k, children }) => {
-        addRow(it, node, page + k, `原檔書籤（原檔第 ${it.sel[k] + 1} 頁）`, depth, bmTitle(it, node), node.title);
-        walk(children, depth + 1);
-      });
-      walk(itemOutline(it, outlines[i]), 1);
-      page += it.sel.length;
-    });
+    }
     const close = (ok) => {
-      if (ok) for (const { input, it, node } of rows) {
-        const v = input.value.trim();
-        if (!node) it.title = v;
-        else if (v === node.title) delete it.bm[node.id];
-        else it.bm[node.id] = v;
-      }
+      if (ok) for (const { input, it, page } of rows) setMark(it, page, input.value);
       bg.remove();
       render();
       resolve(ok);
@@ -874,65 +887,39 @@ async function confirmBookmarks(keepOrig) {
     });
     bg.appendChild(m);
     document.body.appendChild(bg);
-    (rows[0]?.input || m.querySelector("button")).focus();
+    (rows[0]?.input || m.querySelector('[data-act="ok"]')).focus();
   });
 }
 
 // ---------- 合併 ----------
-// marks: [{ title, pageRef, view, bold, italic, color, children }]，全部展開
+// marks: [{ title, pageRef, view }]，全部放在最上層
 function addOutline(doc, marks) {
   if (!marks.length) return;
   const ctx = doc.context;
   const num = (v) => (typeof v === "number" && isFinite(v) ? PDFNumber.of(v) : PDFNull);
-  const write = (list, parentRef) => {
-    const refs = list.map(() => ctx.nextRef());
-    let count = list.length;
-    list.forEach((m, i) => {
-      const dict = ctx.obj({});
-      dict.set(PDFName.of("Title"), PDFHexString.fromText(m.title));
-      dict.set(PDFName.of("Parent"), parentRef);
-      const [type, ...args] = m.view || ["Fit"];
-      dict.set(PDFName.of("Dest"), ctx.obj([m.pageRef, PDFName.of(type), ...args.map(num)]));
-      if (i > 0) dict.set(PDFName.of("Prev"), refs[i - 1]);
-      if (i < list.length - 1) dict.set(PDFName.of("Next"), refs[i + 1]);
-      if (m.children?.length) {
-        const [first, last, n] = write(m.children, refs[i]);
-        dict.set(PDFName.of("First"), first);
-        dict.set(PDFName.of("Last"), last);
-        dict.set(PDFName.of("Count"), PDFNumber.of(n));
-        count += n;
-      }
-      const flags = (m.italic ? 1 : 0) | (m.bold ? 2 : 0);
-      if (flags) dict.set(PDFName.of("F"), PDFNumber.of(flags));
-      if (m.color) dict.set(PDFName.of("C"), ctx.obj(m.color.map((c) => PDFNumber.of(c / 255))));
-      ctx.assign(refs[i], dict);
-    });
-    return [refs[0], refs[refs.length - 1], count];
-  };
   const rootRef = ctx.nextRef();
-  const [first, last, count] = write(marks, rootRef);
+  const refs = marks.map(() => ctx.nextRef());
+  marks.forEach((m, i) => {
+    const dict = ctx.obj({});
+    dict.set(PDFName.of("Title"), PDFHexString.fromText(m.title));
+    dict.set(PDFName.of("Parent"), rootRef);
+    const [type, ...args] = m.view || ["Fit"];
+    dict.set(PDFName.of("Dest"), ctx.obj([m.pageRef, PDFName.of(type), ...args.map(num)]));
+    if (i > 0) dict.set(PDFName.of("Prev"), refs[i - 1]);
+    if (i < marks.length - 1) dict.set(PDFName.of("Next"), refs[i + 1]);
+    ctx.assign(refs[i], dict);
+  });
   const root = ctx.obj({});
   root.set(PDFName.of("Type"), PDFName.of("Outlines"));
-  root.set(PDFName.of("First"), first);
-  root.set(PDFName.of("Last"), last);
-  root.set(PDFName.of("Count"), PDFNumber.of(count));
+  root.set(PDFName.of("First"), refs[0]);
+  root.set(PDFName.of("Last"), refs[refs.length - 1]);
+  root.set(PDFName.of("Count"), PDFNumber.of(marks.length));
   ctx.assign(rootRef, root);
   doc.catalog.set(PDFName.of("Outlines"), rootRef);
   doc.catalog.set(PDFName.of("PageMode"), PDFName.of("UseOutlines"));
 }
 
-// 把篩選後的原檔書籤轉成 addOutline 用的格式；留空的書籤拿掉，子書籤往上提
-function origMarks(it, list, pageRefs) {
-  return list.flatMap(({ node, page, own, children }) => {
-    const kids = origMarks(it, children, pageRefs);
-    const title = bmTitle(it, node).trim();
-    if (!title) return kids;
-    return [{ title, pageRef: pageRefs[page], view: own ? node.view : null,
-      bold: node.bold, italic: node.italic, color: node.color, children: kids }];
-  });
-}
-
-async function buildMerged(list, orientation, onProgress, keepOrig = false) {
+async function buildMerged(list, orientation, onProgress) {
   const out = await PDFDocument.create();
   const total = list.reduce((s, it) => s + it.sel.length, 0);
   const marks = [];
@@ -959,9 +946,8 @@ async function buildMerged(list, orientation, onProgress, keepOrig = false) {
         await new Promise((r) => setTimeout(r));
       }
     }
-    const kids = keepOrig ? origMarks(it, itemOutline(it, await loadOutline(file)), pageRefs) : [];
-    if (it.title) marks.push({ title: it.title, pageRef: pageRefs[0], children: kids });
-    else marks.push(...kids);
+    // 原檔書籤原本跳轉的位置保留，其他書籤跳到整頁
+    for (const { k, page, title } of itemMarks(it)) marks.push({ title, pageRef: pageRefs[k], view: file.flat.get(page)?.view });
   }
   addOutline(out, marks);
   return out.save();
@@ -972,19 +958,19 @@ async function merge() {
   if (merging) return;
   if (!items.length) return toast("請先加入 PDF 檔案");
   if (editing) commitEdit(false);
+  if (commitPvBm()) render();
   const useBm = $("chkBookmarks").checked;
-  const keepOrig = useBm && $("chkKeepBm").checked;
-  if (useBm && !(await confirmBookmarks(keepOrig))) return;
+  if (useBm && !(await confirmBookmarks())) return;
   let name = $("outName").value.trim() || "合併.pdf";
   name = name.replace(/[\\/:*?"<>|]/g, "_");
   if (!/\.pdf$/i.test(name)) name += ".pdf";
-  const list = items.map((it) => ({ ...it, title: useBm ? it.title : "" }));
+  const list = items.map((it) => ({ ...it, marks: useBm ? it.marks : {} }));
   merging = true;
   $("btnMerge").disabled = true;
   $("progress").value = 0;
   setStatus("合併中…");
   try {
-    const bytes = await buildMerged(list, orient(), (d, t) => ($("progress").value = (d * 100) / t), keepOrig);
+    const bytes = await buildMerged(list, orient(), (d, t) => ($("progress").value = (d * 100) / t));
     const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
     const a = document.createElement("a");
     a.href = url;
@@ -1021,13 +1007,23 @@ $("btnPrev").onclick = () => flip(-1);
 $("btnNext").onclick = () => flip(1);
 $("btnSplit").onclick = splitHere;
 $("btnMerge").onclick = merge;
-$("chkBookmarks").onchange = (e) => ($("chkKeepBm").disabled = !e.target.checked);
+$("pvBm").addEventListener("input", () => (pvBmDirty = true));
+$("pvBm").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
+  else if (e.key === "Escape") {
+    e.preventDefault();
+    e.target.value = pvBmTarget ? pvBmTarget.it.marks[pvBmTarget.page] || "" : "";
+    pvBmDirty = false;
+    e.target.blur();
+  }
+});
+$("pvBm").addEventListener("blur", () => { if (commitPvBm()) render(); });
 window.addEventListener("beforeunload", (e) => { if (items.length) { e.preventDefault(); e.returnValue = ""; } });
 
 // 測試用
 window.__pdfm = { get items() { return items; }, set items(v) { items = v; }, get pv() { return pv; }, set pv(v) { pv = v; },
   get selected() { return selected; }, addFiles, render, splitHere, editCell, commitEdit, duplicate, rotate, selectAll, flip,
-  buildMerged, confirmBookmarks, loadOutline, parseRange, formatRange, sortByName, selectOnly, get editing() { return editing; } };
+  buildMerged, confirmBookmarks, loadOutline, itemMarks, parseRange, formatRange, sortByName, selectOnly, get editing() { return editing; } };
 render();
 </script>
 </body>
